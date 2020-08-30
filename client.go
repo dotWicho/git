@@ -30,6 +30,7 @@ type Operations interface {
 	User(userName string) *github.User
 	CreatePullRequest(repoName, srcBranch, dstBranch, subject, description string) *github.PullRequest
 	AssignReviewers(id int, repoName string, reviewers []string) *github.PullRequest
+	Download(repoName, refName, filePath string) (body io.ReadCloser, err error)
 	optsPullRequest(subject, srcBranch, dstBranch, description string) *github.NewPullRequest
 }
 
@@ -309,20 +310,8 @@ func (c *Client) AssignReviewers(id int, repoName string, reviewers []string) *g
 	return nil
 }
 
-// optsPullRequest populate a NewPullRequests with its info
-func (c *Client) optsPullRequest(subject, srcBranch, dstBranch, description string) *github.NewPullRequest {
-
-	return &github.NewPullRequest{
-		Title:               &subject,
-		Head:                &srcBranch,
-		Base:                &dstBranch,
-		Body:                &description,
-		MaintainerCanModify: github.Bool(true),
-	}
-}
-
 // Download returns body response of GET DownloadURL corresponding to filePath
-func (c *Client) Download(repoName, filePath string) (body io.ReadCloser, err error) {
+func (c *Client) Download(repoName, refName, filePath string) (body io.ReadCloser, err error) {
 
 	if len(repoName) == 0 {
 		return nil, fmt.Errorf("repo cannot be null nor empty")
@@ -333,7 +322,7 @@ func (c *Client) Download(repoName, filePath string) (body io.ReadCloser, err er
 
 	dirPath := path.Dir(filePath)
 	fileName := path.Base(filePath)
-	opts := &github.RepositoryContentGetOptions{}
+	opts := &github.RepositoryContentGetOptions{Ref: refName}
 	dirContents := make([]*github.RepositoryContent, 0)
 
 	_, dirContents, _, err = c.github.Repositories.GetContents(c.ctx, c.Organization, repoName, dirPath, opts)
@@ -355,3 +344,16 @@ func (c *Client) Download(repoName, filePath string) (body io.ReadCloser, err er
 	}
 	return nil, fmt.Errorf("filename %s not found", fileName)
 }
+
+// optsPullRequest populate a NewPullRequests with its info
+func (c *Client) optsPullRequest(subject, srcBranch, dstBranch, description string) *github.NewPullRequest {
+
+	return &github.NewPullRequest{
+		Title:               &subject,
+		Head:                &srcBranch,
+		Base:                &dstBranch,
+		Body:                &description,
+		MaintainerCanModify: github.Bool(true),
+	}
+}
+
