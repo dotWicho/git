@@ -15,7 +15,8 @@ import (
 // Operations interface
 type Operations interface {
 	Commit(repoName, commitSHA string) *github.Commit
-	Repositories() []*github.Repository
+	Compare(repoName, base, head string) *github.CommitsComparison
+	Repositories(repoType, repoSort string) []*github.Repository
 	Repository(repoName string) *github.Repository
 	Branches(repoName string) []*github.Branch
 	Branch(repoName, branchName string) *github.Branch
@@ -41,7 +42,7 @@ type Client struct {
 	token        string
 	github       *github.Client
 	ctx          context.Context
-	tkSource      oauth2.TokenSource
+	tkSource     oauth2.TokenSource
 	tClient      *http.Client
 }
 
@@ -66,11 +67,20 @@ func (c *Client) Commit(repoName, commitSHA string) *github.Commit {
 	return nil
 }
 
+// Commit returns an Object Commit based on repoName and commitSHA
+func (c *Client) Compare(repoName, base, head string) *github.CommitsComparison {
+
+	if commit, _, err := c.github.Repositories.CompareCommits(c.ctx, c.Organization, repoName, base, head); err == nil {
+		return commit
+	}
+	return nil
+}
+
 // Repositories list all Organization repositories
-func (c *Client) Repositories() []*github.Repository {
+func (c *Client) Repositories(repoType, repoSort string) []*github.Repository {
 
 	//
-	opts := &github.RepositoryListByOrgOptions{Type: "private", ListOptions: github.ListOptions{PerPage: 128, Page: 0}}
+	opts := &github.RepositoryListByOrgOptions{Type: repoType, Sort: repoSort, ListOptions: github.ListOptions{PerPage: 128, Page: 0}}
 
 	var repos []*github.Repository
 	for {
@@ -158,7 +168,7 @@ func (c *Client) Tags(repoName string) []*github.RepositoryTag {
 // TagByName returns an Object Tag based in repoName and tagName
 func (c *Client) TagByName(repoName, tagName string) *github.RepositoryTag {
 	//
-	opts := &github.ListOptions{PerPage: 12, Page: 0}
+	opts := &github.ListOptions{PerPage: 128, Page: 0}
 
 	var theTag *github.RepositoryTag
 	for {
@@ -282,7 +292,7 @@ func (c *Client) CreatePullRequest(repoName, srcBranch, dstBranch, subject, desc
 		return nil
 	}
 
-	if strings.Contains(srcBranch, string(':')) && len(c.Organization) == 0 {
+	if strings.Contains(srcBranch, ":") && len(c.Organization) == 0 {
 		dstBranch = fmt.Sprintf("%s:%s", c.Organization, dstBranch)
 	}
 
@@ -356,4 +366,3 @@ func (c *Client) optsPullRequest(subject, srcBranch, dstBranch, description stri
 		MaintainerCanModify: github.Bool(true),
 	}
 }
-
