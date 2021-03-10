@@ -16,6 +16,7 @@ import (
 type Operations interface {
 	Commit(repoName, commitSHA string) *github.Commit
 	Compare(repoName, base, head string) *github.CommitsComparison
+	Merge(repoName, base, head, message string) *github.RepositoryCommit
 	Repositories(repoType, repoSort string) []*github.Repository
 	Repository(repoName string) *github.Repository
 	Branches(repoName string) []*github.Branch
@@ -67,10 +68,20 @@ func (c *Client) Commit(repoName, commitSHA string) *github.Commit {
 	return nil
 }
 
-// Commit returns an Object Commit based on repoName and commitSHA
+// Compare returns an Object Commit based on repoName and commitSHA
 func (c *Client) Compare(repoName, base, head string) *github.CommitsComparison {
 
 	if commit, _, err := c.github.Repositories.CompareCommits(c.ctx, c.Organization, repoName, base, head); err == nil {
+		return commit
+	}
+	return nil
+}
+
+// Merge returns an Object Commit based on merge to repoName:head into repoName:base
+func (c *Client) Merge(repoName, base, head, message string) *github.RepositoryCommit {
+
+	request := &github.RepositoryMergeRequest{Base: &base, Head: &head, CommitMessage: &message}
+	if commit, _, err := c.github.Repositories.Merge(c.ctx, c.Organization, repoName, request); err == nil {
 		return commit
 	}
 	return nil
